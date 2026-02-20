@@ -14,24 +14,29 @@ if (firebaseConfig) {
 } else {
     console.warn('No Firebase config provided — running without backend.');
 }
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'kolhapur-civic-engine';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'kcde-kolhapur';
 
 const TOTAL_WARD_BUDGET = 4.5; 
 let user = null;
 let proposals = [];
 let votedIds = [];
 let simChart = null;
+let userIdentifier = ''; // Track user by name + ward to allow voting with different usernames
 
-// Load local proposals for offline/demo mode
+// Load local proposals for offline/demo mode and initialize with dummy data
 if (!db) {
     try {
         const stored = localStorage.getItem('proposals');
         if (stored) proposals = JSON.parse(stored);
-    } catch (e) { console.warn('Failed to parse local proposals', e); }
+        else proposals = JSON.parse(JSON.stringify(dummyProposals)); // Initialize with dummy proposals
+    } catch (e) { console.warn('Failed to parse local proposals', e); proposals = JSON.parse(JSON.stringify(dummyProposals)); }
     try {
         const v = localStorage.getItem('votedIds');
         if (v) votedIds = JSON.parse(v);
     } catch (e) { console.warn('Failed to parse votedIds', e); }
+} else {
+    // Even with Firebase, initialize proposals with dummy data if empty
+    proposals = JSON.parse(JSON.stringify(dummyProposals));
 }
 
 const state = {
@@ -41,6 +46,65 @@ const state = {
     ward: '',
     budgetSim: { 'Roads': 40, 'Drainage': 20, 'Parks': 15, 'Lighting': 15, 'Safety': 10 }
 };
+
+// Dummy proposals with votes
+const dummyProposals = [
+    {
+        id: 'dummy-1',
+        title: 'Repair Main Street Potholes',
+        category: 'Roads',
+        desc: 'Fix dangerous potholes on Main Street causing accidents and damage to vehicles.',
+        cost: '₹ 45 L',
+        votes: 234,
+        status: 'Approved',
+        author: 'Rajvardhan Patil',
+        createdAt: Date.now() - 30 * 24 * 60 * 60 * 1000
+    },
+    {
+        id: 'dummy-2',
+        title: 'New Community Park in Shahupuri',
+        category: 'Parks',
+        desc: 'Create a green space for children and families with playground equipment and benches.',
+        cost: '₹ 22 L',
+        votes: 189,
+        status: 'Funded',
+        author: 'Meera Sharma',
+        createdAt: Date.now() - 25 * 24 * 60 * 60 * 1000
+    },
+    {
+        id: 'dummy-3',
+        title: 'Smart Street Lighting System',
+        category: 'Lighting',
+        desc: 'Install LED lights with motion sensors to save electricity and improve night safety.',
+        cost: '₹ 6.5 L',
+        votes: 156,
+        status: 'Pending',
+        author: 'Vikram Desai',
+        createdAt: Date.now() - 20 * 24 * 60 * 60 * 1000
+    },
+    {
+        id: 'dummy-4',
+        title: 'Drainage System Overhaul in Rajarampuri',
+        category: 'Drainage',
+        desc: 'Upgrade outdated sewer lines causing waterlogging during monsoon season.',
+        cost: '₹ 15 L',
+        votes: 142,
+        status: 'Approved',
+        author: 'Anjali Ghate',
+        createdAt: Date.now() - 15 * 24 * 60 * 60 * 1000
+    },
+    {
+        id: 'dummy-5',
+        title: 'Women Safety Patrol Initiative',
+        category: 'Safety',
+        desc: 'Increase police presence in market areas especially during evening hours.',
+        cost: '₹ 12 L',
+        votes: 178,
+        status: 'Pending',
+        author: 'Priya Kulkarni',
+        createdAt: Date.now() - 10 * 24 * 60 * 60 * 1000
+    }
+];
 
 const statusColors = {
     'Completed': 'bg-green-100 text-green-700',
@@ -110,6 +174,8 @@ if (auth) {
     window.addEventListener('DOMContentLoaded', () => {
         const loginBtn = document.getElementById('login-btn');
         if (loginBtn) { loginBtn.textContent = "Join Decision Engine"; loginBtn.disabled = false; }
+        // Load localStorage votes for offline mode
+        try { votedIds = JSON.parse(localStorage.getItem('userVotedIds') || '[]'); } catch(e) { votedIds = []; }
     });
 }
 
@@ -172,26 +238,58 @@ function renderDashboard() {
 function renderProposals() {
     const container = document.getElementById('proposals-list');
     container.innerHTML = proposals.length === 0 ? '<div class="text-center py-10 opacity-50"><p>No proposals yet. Share your first idea!</p></div>' : '';
+    
+    const categoryEmoji = { 'Roads': '🛣️', 'Drainage': '💧', 'Parks': '🌳', 'Lighting': '💡', 'Safety': '🛡️' };
+    const categoryColors = {
+        'Roads': 'from-orange-100 to-orange-50 border-orange-200 text-orange-700',
+        'Drainage': 'from-blue-100 to-blue-50 border-blue-200 text-blue-700',
+        'Parks': 'from-green-100 to-green-50 border-green-200 text-green-700',
+        'Lighting': 'from-yellow-100 to-yellow-50 border-yellow-200 text-yellow-700',
+        'Safety': 'from-red-100 to-red-50 border-red-200 text-red-700'
+    };
+    
     proposals.forEach(p => {
         const card = document.createElement('div');
-        card.className = "bg-white rounded-2xl p-5 border-2 border-gray-100 shadow-md hover:shadow-lg transition-all proposal-card";
+        card.className = "bg-white rounded-2xl border-2 border-gray-200 shadow-md hover:shadow-xl transition-all proposal-card overflow-hidden";
         const isVoted = votedIds.includes(p.id);
-        const categoryEmoji = { 'Roads': '🛣️', 'Drainage': '💧', 'Parks': '🌳', 'Lighting': '💡', 'Safety': '🛡️' };
+        const colors = categoryColors[p.category] || 'from-gray-100 to-gray-50 border-gray-200 text-gray-700';
+        
+        // Vote strength indicator
+        let voteStrength = 'bg-gray-100';
+        let voteText = 'No Support';
+        if ((p.votes || 0) > 150) { voteStrength = 'bg-gradient-to-r from-green-400 to-emerald-400'; voteText = 'High Support'; }
+        else if ((p.votes || 0) > 100) { voteStrength = 'bg-gradient-to-r from-blue-400 to-indigo-400'; voteText = 'Good Support'; }
+        else if ((p.votes || 0) > 50) { voteStrength = 'bg-gradient-to-r from-yellow-400 to-amber-400'; voteText = 'Growing'; }
+        
         card.innerHTML = `
-            <div class="flex justify-between items-start mb-3">
-                <span class="text-xs font-bold uppercase bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">${categoryEmoji[p.category] || '📋'} ${p.category}</span>
-                <span class="text-[10px] font-bold px-3 py-1 rounded-full ${statusColors[p.status] || statusColors.Pending}">${p.status || 'Pending'}</span>
-            </div>
-            <h3 class="font-bold text-gray-900 mb-2 text-base">${p.title}</h3>
-            <p class="text-sm text-gray-600 mb-3 line-clamp-2">${p.desc}</p>
-            <p class="text-xs font-semibold text-gray-700 mb-4 bg-gray-50 inline-block px-3 py-1 rounded-lg">💰 ${p.cost}</p>
-            <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                <div class="flex items-center gap-1">
-                    <svg class="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
-                    <span class="text-sm font-bold text-indigo-600">${p.votes || 0}</span>
+            <div class="bg-gradient-to-r ${colors} p-4 border-b-2 ${colors.split(' ')[colors.split(' ').length - 1]}">
+                <div class="flex justify-between items-start">
+                    <span class="text-2xl">${categoryEmoji[p.category] || '📋'}</span>
+                    <span class="text-[10px] font-bold px-2.5 py-1 rounded-full ${statusColors[p.status] || statusColors.Pending}">${p.status || 'Pending'}</span>
                 </div>
-                <button id="vote-btn-${p.id}" class="${isVoted ? 'bg-gray-200 text-gray-600' : 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'} text-xs font-bold px-6 py-2 rounded-lg transition-all hover:shadow-lg transform hover:scale-105">
-                    ${isVoted ? '✓ Supported' : '👍 Support'}
+            </div>
+            <div class="p-4">
+                <h3 class="font-bold text-gray-900 mb-1 text-sm line-clamp-2">${p.title}</h3>
+                <p class="text-xs text-gray-600 mb-3 line-clamp-2">${p.desc}</p>
+                
+                <div class="flex items-center gap-2 mb-4 text-xs">
+                    <span class="inline-block px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 font-semibold rounded-lg">📊 ${p.category}</span>
+                    <span class="inline-block px-2.5 py-1 bg-gray-100 border border-gray-300 text-gray-700 font-semibold rounded-lg">💰 ${p.cost}</span>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-gray-700">Community Support</span>
+                        <span class="text-xs font-bold ${voteStrength.includes('green') ? 'text-green-600' : voteStrength.includes('blue') ? 'text-blue-600' : voteStrength.includes('yellow') ? 'text-amber-600' : 'text-gray-600'}">${voteText}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="${voteStrength} h-2 rounded-full transition-all" style="width: ${Math.min((p.votes || 0) / 2.5, 100)}%"></div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2 font-semibold">${p.votes || 0} people support this idea</p>
+                </div>
+                
+                <button id="vote-btn-${p.id}" class="${isVoted ? 'bg-gray-100 text-gray-600 border border-gray-300' : 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'} w-full text-xs font-bold py-3 rounded-lg transition-all hover:shadow-lg transform hover:scale-105">
+                    ${isVoted ? '✓ Supported by You' : '👍 Show Support'}
                 </button>
             </div>
         `;
@@ -203,41 +301,152 @@ function renderProposals() {
 function renderAdmin() {
     const container = document.getElementById('admin-pending-list');
     container.innerHTML = proposals.length === 0 ? '<p class="text-sm text-center text-gray-400 py-4">No active proposals in the system.</p>' : '';
-    proposals.forEach(p => {
+    
+    // Calculate metrics
+    let totalProposals = proposals.length;
+    let pendingCount = proposals.filter(p => p.status === 'Pending').length;
+    let completedCount = proposals.filter(p => p.status === 'Completed').length;
+    let totalVotes = proposals.reduce((sum, p) => sum + (p.votes || 0), 0);
+    
+    // Update metrics
+    document.getElementById('admin-total').textContent = totalProposals;
+    document.getElementById('admin-pending').textContent = pendingCount;
+    document.getElementById('admin-completed').textContent = completedCount;
+    document.getElementById('admin-total-votes').textContent = totalVotes;
+    
+    // Sort proposals by votes (highest first)
+    [...proposals].sort((a,b) => (b.votes || 0) - (a.votes || 0)).forEach((p, index) => {
         const div = document.createElement('div');
-        div.className = "bg-white p-4 rounded-xl border space-y-3 shadow-sm";
+        const votePercentage = totalVotes > 0 ? ((p.votes || 0) / totalVotes * 100).toFixed(1) : 0;
+        
+        // Status color styling
+        let statusBg = 'from-gray-100 to-gray-50 border-gray-200';
+        let statusText = 'text-gray-700';
+        if (p.status === 'Pending') { statusBg = 'from-amber-100 to-amber-50 border-amber-200'; statusText = 'text-amber-700'; }
+        else if (p.status === 'Approved') { statusBg = 'from-indigo-100 to-indigo-50 border-indigo-200'; statusText = 'text-indigo-700'; }
+        else if (p.status === 'Funded') { statusBg = 'from-blue-100 to-blue-50 border-blue-200'; statusText = 'text-blue-700'; }
+        else if (p.status === 'Completed') { statusBg = 'from-green-100 to-green-50 border-green-200'; statusText = 'text-green-700'; }
+        
+        div.className = "bg-white rounded-2xl border-2 border-gray-200 shadow-md hover:shadow-lg transition-all p-4";
         div.innerHTML = `
-            <div class="flex justify-between items-center">
+            <div class="flex items-start justify-between mb-3">
                 <div class="flex-1">
-                    <h5 class="text-sm font-bold">${p.title}</h5>
-                    <p class="text-[10px] text-gray-400">Current Status: <span class="text-blue-600 font-bold uppercase">${p.status}</span> | Cost: ${p.cost}</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg font-bold text-gray-400">#${index + 1}</span>
+                        <h5 class="text-sm font-bold text-gray-900 flex-1 line-clamp-1">${p.title}</h5>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-2 line-clamp-1">Category: <span class="font-semibold">${p.category}</span> | Cost: <span class="font-semibold">${p.cost}</span></p>
+                </div>
+                <span class="text-[10px] font-bold px-3 py-1 rounded-full whitespace-nowrap ${statusColors[p.status] || statusColors.Pending}">${p.status || 'Pending'}</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-3 border border-indigo-200">
+                    <p class="text-[9px] text-indigo-600 font-bold uppercase">Support</p>
+                    <p class="text-lg font-bold text-indigo-700">👍 ${p.votes || 0}</p>
+                    <p class="text-[8px] text-indigo-600 mt-1">${votePercentage}% of total</p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                    <p class="text-[9px] text-purple-600 font-bold uppercase">Status</p>
+                    <p class="text-sm font-bold text-purple-700">${p.status}</p>
+                    <p class="text-[8px] text-purple-600 mt-1">Ready to Action</p>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <button id="adm-app-${p.id}" class="flex-1 py-2 text-[9px] font-bold bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">APPROVE</button>
-                <button id="adm-fun-${p.id}" class="flex-1 py-2 text-[9px] font-bold bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100">FUND</button>
-                <button id="adm-com-${p.id}" class="flex-1 py-2 text-[9px] font-bold bg-green-50 text-green-700 rounded-lg border border-green-100">DONE</button>
+            
+            <div class="flex gap-2 mb-3">
+                ${p.status !== 'Completed' ? `<button id="adm-app-${p.id}" class="flex-1 py-2.5 text-[9px] font-bold bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-lg hover:from-indigo-600 hover:to-indigo-700 transition transform hover:scale-105 shadow-sm">✓ APPROVE</button>` : ''}
+                ${['Pending', 'Approved'].includes(p.status) ? `<button id="adm-fun-${p.id}" class="flex-1 py-2.5 text-[9px] font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition transform hover:scale-105 shadow-sm">💰 FUND</button>` : ''}
+                ${p.status !== 'Pending' ? `<button id="adm-com-${p.id}" class="flex-1 py-2.5 text-[9px] font-bold bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition transform hover:scale-105 shadow-sm">✅ COMPLETE</button>` : ''}
+            </div>
+            
+            <div class="bg-gray-50 rounded-lg p-2 border border-gray-200">
+                <p class="text-[8px] text-gray-600">By <span class="font-semibold">${p.author || 'Community'}</span> • ${new Date(p.createdAt).toLocaleDateString()}</p>
             </div>
         `;
         container.appendChild(div);
-        document.getElementById(`adm-app-${p.id}`).onclick = () => window.updateStatus(p.id, 'Approved');
-        document.getElementById(`adm-fun-${p.id}`).onclick = () => window.updateStatus(p.id, 'Funded');
-        document.getElementById(`adm-com-${p.id}`).onclick = () => window.updateStatus(p.id, 'Completed');
+        
+        if (p.status !== 'Completed' && document.getElementById(`adm-app-${p.id}`)) {
+            document.getElementById(`adm-app-${p.id}`).onclick = () => window.updateStatus(p.id, 'Approved');
+        }
+        if (['Pending', 'Approved'].includes(p.status) && document.getElementById(`adm-fun-${p.id}`)) {
+            document.getElementById(`adm-fun-${p.id}`).onclick = () => window.updateStatus(p.id, 'Funded');
+        }
+        if (p.status !== 'Pending' && document.getElementById(`adm-com-${p.id}`)) {
+            document.getElementById(`adm-com-${p.id}`).onclick = () => window.updateStatus(p.id, 'Completed');
+        }
     });
 }
 
 function renderResults() {
     const container = document.getElementById('results-status-list');
     container.innerHTML = proposals.length === 0 ? '<p class="text-sm text-center text-gray-400 py-4">No tracking data available yet.</p>' : '';
-    proposals.forEach(p => {
+    
+    // Calculate statistics
+    const totalProposals = proposals.length;
+    const completedProposals = proposals.filter(p => p.status === 'Completed').length;
+    const progressProposals = proposals.filter(p => p.status === 'Funded' || p.status === 'Approved').length;
+    
+    // Update stats
+    document.getElementById('total-proposals').textContent = totalProposals;
+    document.getElementById('completed-count').textContent = completedProposals;
+    document.getElementById('progress-count').textContent = progressProposals;
+    
+    // Sort by status priority: Completed, Funded, Approved, Pending
+    const statusOrder = { 'Completed': 0, 'Funded': 1, 'Approved': 2, 'Pending': 3 };
+    [...proposals].sort((a, b) => (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99)).forEach((p, index) => {
         const div = document.createElement('div');
-        div.className = "flex items-start gap-3 border-b pb-3 last:border-0";
+        div.className = "flex items-start gap-4 pb-4 border-b border-gray-200 last:border-0";
+        
+        // Status icon and color
+        let statusIcon = '⏳';
+        let statusColor = 'text-gray-400 bg-gray-100';
+        let progressPercent = 33;
+        
+        if (p.status === 'Completed') {
+            statusIcon = '✅';
+            statusColor = 'text-green-600 bg-green-100';
+            progressPercent = 100;
+        } else if (p.status === 'Funded') {
+            statusIcon = '💰';
+            statusColor = 'text-blue-600 bg-blue-100';
+            progressPercent = 75;
+        } else if (p.status === 'Approved') {
+            statusIcon = '✓';
+            statusColor = 'text-indigo-600 bg-indigo-100';
+            progressPercent = 50;
+        }
+        
         div.innerHTML = `
-            <div class="w-3 h-3 rounded-full mt-1 ${p.status === 'Completed' ? 'bg-green-500' : 'bg-blue-400'}"></div>
-            <div class="flex-1">
-                <div class="flex justify-between items-center">
-                    <h5 class="text-sm font-bold text-gray-800">${p.title}</h5>
-                    <span class="text-[9px] font-bold px-2 py-0.5 rounded-full ${statusColors[p.status]}">${p.status}</span>
+            <div class="flex-shrink-0 w-12 h-12 rounded-full ${statusColor} flex items-center justify-center text-lg font-bold mt-1">
+                ${statusIcon}
+            </div>
+            <div class="flex-1 min-w-0 pt-1">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                    <div class="min-w-0 flex-1">
+                        <h5 class="text-sm font-bold text-gray-800 line-clamp-2">${p.title}</h5>
+                        <p class="text-xs text-gray-500 mt-0.5">${p.category} • ${p.cost}</p>
+                    </div>
+                    <span class="text-[9px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${statusColors[p.status]}">${p.status}</span>
+                </div>
+                
+                <div class="mb-2">
+                    <div class="flex justify-between items-center mb-1">
+                        <p class="text-[11px] font-bold text-gray-600">Progress</p>
+                        <p class="text-[9px] text-gray-500">${progressPercent}%</p>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="h-2 rounded-full transition-all ${
+                            p.status === 'Completed' ? 'bg-green-500' :
+                            p.status === 'Funded' ? 'bg-blue-500' :
+                            p.status === 'Approved' ? 'bg-indigo-500' :
+                            'bg-gray-400'
+                        }" style="width: ${progressPercent}%"></div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-2 text-[10px]">
+                    <span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded font-bold">👍 ${p.votes || 0} Support</span>
+                    <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded font-bold">👤 ${p.author || 'Community'}</span>
                 </div>
             </div>
         `;
@@ -256,6 +465,17 @@ window.handleLogin = () => {
     state.userPhone = phone;
     state.ward = document.getElementById('login-ward').value;
     
+    // Create userIdentifier based on name and ward to allow voting with different usernames
+    userIdentifier = `${name}|${state.ward}`;
+    
+    // Load user-specific votes from localStorage
+    try {
+        const userVotes = localStorage.getItem(`votes-${userIdentifier}`);
+        votedIds = userVotes ? JSON.parse(userVotes) : [];
+    } catch(e) {
+        votedIds = [];
+    }
+    
     document.getElementById('header-greeting').textContent = `Hello, ${state.userName.split(' ')[0]}`;
     document.getElementById('header-ward').textContent = state.ward.split(' - ')[0];
     document.getElementById('header-ward-location').textContent = state.ward;
@@ -271,7 +491,7 @@ window.handleLogin = () => {
     if (!user) {
         user = { uid: 'demo-' + Date.now(), isDemo: true };
         // ensure votedIds/proposals are in sync from localStorage
-        try { votedIds = JSON.parse(localStorage.getItem('votedIds') || '[]'); } catch(e) { votedIds = []; }
+        try { votedIds = JSON.parse(localStorage.getItem(`votes-${userIdentifier}`) || '[]'); } catch(e) { votedIds = []; }
         try { proposals = JSON.parse(localStorage.getItem('proposals') || '[]'); } catch(e) { /* ignore */ }
         refreshUI();
     }
@@ -317,7 +537,7 @@ window.submitProposal = async () => {
 };
 
 window.voteProposal = async (id) => {
-    if (votedIds.includes(id)) return;
+    if (votedIds.includes(id)) return window.showToast("You've already supported this proposal");
     if (!user && !db) {
         user = { uid: 'demo-' + Date.now(), isDemo: true };
     }
@@ -328,18 +548,19 @@ window.voteProposal = async (id) => {
             const newVotes = [...votedIds, id];
             await setDoc(votesRef, { ids: newVotes });
             await updateDoc(proposalRef, { votes: increment(1) });
+            votedIds = newVotes;
             window.showToast("Support recorded.");
         } catch (err) {
             window.showToast("Vote failed.");
         }
     } else {
-        // Offline: update local proposals and votedIds
+        // Offline: update local proposals and votedIds based on userIdentifier
         votedIds.push(id);
-        try { localStorage.setItem('votedIds', JSON.stringify(votedIds)); } catch (e) { console.warn(e); }
+        try { localStorage.setItem(`votes-${userIdentifier}`, JSON.stringify(votedIds)); } catch (e) { console.warn(e); }
         const p = proposals.find(x => x.id === id);
         if (p) { p.votes = (p.votes || 0) + 1; try { localStorage.setItem('proposals', JSON.stringify(proposals)); } catch (e) {} }
         refreshUI();
-        window.showToast('Support recorded (offline)');
+        window.showToast('Support recorded!');
     }
 };
 
