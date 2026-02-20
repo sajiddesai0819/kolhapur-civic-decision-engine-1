@@ -16,27 +16,36 @@ if (firebaseConfig) {
 }
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'kcde-kolhapur';
 
-const TOTAL_WARD_BUDGET = 4.5; 
+const TOTAL_WARD_BUDGET = 4.5; // ₹ 4.5 Crore per ward for FY26-27
 let user = null;
 let proposals = [];
 let votedIds = [];
 let simChart = null;
 let userIdentifier = ''; // Track user by name + ward to allow voting with different usernames
+let currentWard = ''; // Track current ward for budget calculations
 
-// Load local proposals for offline/demo mode and initialize with dummy data
+// Ward-specific proposal storage - store per ward in localStorage
+function getWardProposals(ward) {
+    try {
+        const stored = localStorage.getItem(`proposals-${ward}`);
+        if (stored) return JSON.parse(stored);
+    } catch (e) { console.warn('Failed to parse ward proposals', e); }
+    // Initialize with dummy proposals for new wards
+    return JSON.parse(JSON.stringify(dummyProposals));
+}
+
+function saveWardProposals(ward, proposals) {
+    try {
+        localStorage.setItem(`proposals-${ward}`, JSON.stringify(proposals));
+    } catch (e) { console.warn('Failed to save ward proposals', e); }
+}
+
+// Load local proposals for offline/demo mode
 if (!db) {
     try {
-        const stored = localStorage.getItem('proposals');
-        if (stored) proposals = JSON.parse(stored);
-        else proposals = JSON.parse(JSON.stringify(dummyProposals)); // Initialize with dummy proposals
-    } catch (e) { console.warn('Failed to parse local proposals', e); proposals = JSON.parse(JSON.stringify(dummyProposals)); }
-    try {
-        const v = localStorage.getItem('votedIds');
+        const v = localStorage.getItem('userVotedIds');
         if (v) votedIds = JSON.parse(v);
     } catch (e) { console.warn('Failed to parse votedIds', e); }
-} else {
-    // Even with Firebase, initialize proposals with dummy data if empty
-    proposals = JSON.parse(JSON.stringify(dummyProposals));
 }
 
 const state = {
@@ -464,11 +473,19 @@ window.handleLogin = () => {
     state.userName = name;
     state.userPhone = phone;
     state.ward = document.getElementById('login-ward').value;
+    currentWard = state.ward; // Set current ward for budget calculations
+    
+    // Clear previous ward data completely
+    proposals = [];
+    votedIds = [];
+    
+    // Load ward-specific proposals - completely isolated per ward
+    proposals = getWardProposals(state.ward);
     
     // Create userIdentifier based on name and ward to allow voting with different usernames
     userIdentifier = `${name}|${state.ward}`;
     
-    // Load user-specific votes from localStorage
+    // Load user-specific votes from localStorage - ward-isolated
     try {
         const userVotes = localStorage.getItem(`votes-${userIdentifier}`);
         votedIds = userVotes ? JSON.parse(userVotes) : [];
@@ -482,8 +499,8 @@ window.handleLogin = () => {
     document.getElementById('header-phone').textContent = phone;
     document.getElementById('header-role').textContent = state.currentRole === 'admin' ? 'Admin' : 'Citizen';
     document.getElementById('header-role').className = state.currentRole === 'admin' 
-        ? 'px-3 py-1 bg-amber-500/30 text-amber-100 text-[10px] font-bold rounded-full uppercase' 
-        : 'px-3 py-1 bg-green-500/30 text-green-100 text-[10px] font-bold rounded-full uppercase';
+        ? 'px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 text-amber-900 text-[10px] font-bold rounded-full shadow-md uppercase tracking-wider' 
+        : 'px-4 py-2 bg-gradient-to-r from-green-400 to-emerald-400 text-green-900 text-[10px] font-bold rounded-full shadow-md uppercase';
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-content').classList.remove('hidden');
     initSimulator();
@@ -492,7 +509,6 @@ window.handleLogin = () => {
         user = { uid: 'demo-' + Date.now(), isDemo: true };
         // ensure votedIds/proposals are in sync from localStorage
         try { votedIds = JSON.parse(localStorage.getItem(`votes-${userIdentifier}`) || '[]'); } catch(e) { votedIds = []; }
-        try { proposals = JSON.parse(localStorage.getItem('proposals') || '[]'); } catch(e) { /* ignore */ }
         refreshUI();
     }
 };
@@ -529,7 +545,7 @@ window.submitProposal = async () => {
     } else {
         // Offline/local mode: store locally and refresh UI
         proposals.push(proposalObj);
-        try { localStorage.setItem('proposals', JSON.stringify(proposals)); } catch (e) { console.warn(e); }
+        try { saveWardProposals(currentWard, proposals); } catch (e) { console.warn(e); }
         window.closeProposalModal();
         window.showToast("Proposal saved locally");
         refreshUI();
@@ -558,7 +574,7 @@ window.voteProposal = async (id) => {
         votedIds.push(id);
         try { localStorage.setItem(`votes-${userIdentifier}`, JSON.stringify(votedIds)); } catch (e) { console.warn(e); }
         const p = proposals.find(x => x.id === id);
-        if (p) { p.votes = (p.votes || 0) + 1; try { localStorage.setItem('proposals', JSON.stringify(proposals)); } catch (e) {} }
+        if (p) { p.votes = (p.votes || 0) + 1; try { saveWardProposals(currentWard, proposals); } catch (e) {} }
         refreshUI();
         window.showToast('Support recorded!');
     }
@@ -580,7 +596,7 @@ window.updateStatus = async (id, newStatus) => {
         const p = proposals.find(x => x.id === id);
         if (p) {
             p.status = newStatus;
-            try { localStorage.setItem('proposals', JSON.stringify(proposals)); } catch (e) { console.warn(e); }
+            try { saveWardProposals(currentWard, proposals); } catch (e) { console.warn(e); }
             refreshUI();
             window.showToast(`Project status: ${newStatus} (local)`);
         }
@@ -588,9 +604,20 @@ window.updateStatus = async (id, newStatus) => {
 };
 
 window.logout = () => {
+    // Clear all ward/user-specific data
+    proposals = [];
+    votedIds = [];
+    userIdentifier = '';
+    currentWard = '';
+    state.userName = '';
+    state.userPhone = '';
+    state.ward = '';
+    state.currentRole = 'citizen';
+    
     document.getElementById('app-content').classList.add('hidden');
     document.getElementById('login-screen').classList.remove('hidden');
     document.getElementById('login-name').value = '';
+    document.getElementById('login-phone').value = '';
     window.showToast("Session ended.");
 };
 
