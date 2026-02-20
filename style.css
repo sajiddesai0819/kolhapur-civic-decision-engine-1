@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.hide-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.active-nav {
+    color: #2563eb;
+}
+
+/* Custom range slider styling */
+input[type=range] {
+    height: 6px;
+    -webkit-appearance: none;
+    width: 100%;
+    background: #e5e7eb;
+    border-radius: 8px;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #2563eb;
+    cursor: pointer;
+    -webkit-appearance: none;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    transition: all 0.2s;
+}
+
+input[type=range]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.6);
+}
+
+@keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.animate-loading {
+    animation: loading 2s infinite linear;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slide-up {
+    from { 
+        opacity: 0;
+        transform: translateY(50px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+}
+
+/* Smooth transitions */
+button {
+    transition: all 0.2s ease;
+}
+
+input, select, textarea {
+    transition: all 0.2s ease;
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Shadow utilities */
+.shadow-soft {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Focus states */
+input:focus, select:focus, textarea:focus {
+    outline: none;
+}
+
+/* Active proposal card effect */
+.proposal-card {
+    transition: all 0.3s ease;
+}
+
+.proposal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Button animations */
+button:active {
+    transform: scale(0.98);
+}
+
+/* Backdrop blur support */
+@supports (backdrop-filter: blur(10px)) {
+    .backdrop-blur-sm {
+        backdrop-filter: blur(4px);
+    }
+}

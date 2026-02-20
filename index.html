@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCDE - Kolhapur Civic Decision Engine</title>
+
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- External CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="max-w-md mx-auto bg-gray-50 min-h-screen shadow-2xl relative overflow-x-hidden">
+
+    <!-- Splash Screen -->
+    <div id="splash-screen"
+        class="fixed inset-0 z-50 bg-blue-700 flex flex-col items-center justify-center text-white px-6 transition-opacity duration-500">
+        <div class="mb-6 animate-bounce">
+            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18" />
+                <path d="M3 7v1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7H3l2-4h14l2 4" />
+                <path d="M5 21V10h14v11" />
+                <path d="M9 21v-4a2 2 0 0 1 4 0v4" />
+            </svg>
+        </div>
+        <h1 class="text-3xl font-bold mb-2">BCDE</h1>
+        <p class="text-blue-100 text-center opacity-90">People Decide. Government Executes.</p>
+        <div class="mt-12 w-12 h-1 bg-blue-400 rounded-full overflow-hidden">
+            <div class="bg-white h-full animate-loading"></div>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="hidden min-h-screen flex flex-col p-6 bg-gradient-to-b from-blue-50 to-white fade-in">
+        <div class="flex-1 flex flex-col justify-center">
+            <div class="mb-8">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                        <path d="M3 21h18" />
+                        <path d="M3 7v1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7m0 1a3 3 0 0 0 6 0V7H3l2-4h14l2 4" />
+                    </svg>
+                </div>
+                <h2 class="text-4xl font-bold text-center text-gray-900 mb-2">BCDE</h2>
+                <p class="text-center text-gray-600 font-medium">Civic Decision Engine</p>
+            </div>
+            <p class="text-gray-500 text-center mb-8 text-sm">Empowering citizens of Kolhapur for a better tomorrow</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Full Name</label>
+                    <input type="text" id="login-name" placeholder="E.g. Rajvardhan Patil"
+                        class="w-full px-4 py-3 bg-white border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition duration-200">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Phone Number</label>
+                    <input type="tel" id="login-phone" placeholder="E.g. +91 98765 43210"
+                        class="w-full px-4 py-3 bg-white border-2 border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl transition duration-200">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Select Ward</label>
+                    <select id="login-ward"
+                        class="w-full px-4 py-3 bg-white border-2 border-gray-200 focus:border-blue-500 rounded-xl transition duration-200">
+                        <option value="Ward 1 - Rajarampuri">Ward 1 - Rajarampuri</option>
+                        <option value="Ward 2 - Shahupuri">Ward 2 - Shahupuri</option>
+                        <option value="Ward 3 - Tarabai Park">Ward 3 - Tarabai Park</option>
+                        <option value="Ward 4 - Laxmipuri">Ward 4 - Laxmipuri</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Role</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="setRole('citizen')" id="role-citizen"
+                            class="py-3 px-4 rounded-xl border-2 border-blue-600 bg-blue-50 text-blue-700 font-semibold transition hover:bg-blue-100">Citizen</button>
+                        <button onclick="setRole('admin')" id="role-admin"
+                            class="py-3 px-4 rounded-xl border-2 border-gray-200 text-gray-500 font-semibold transition hover:bg-gray-50">Admin</button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="handleLogin()" id="login-btn" disabled
+                class="w-full mt-10 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:opacity-50 disabled:from-gray-400 disabled:to-gray-400">
+                Join Decision Engine
+            </button>
+        </div>
+        <p class="text-center text-xs text-gray-400 mt-6">By continuing, you agree to our Civic Participation Terms.</p>
+    </div>
+
+    <!-- Main Content Wrapper -->
+    <div id="app-content" class="hidden min-h-screen pb-24 fade-in bg-gradient-to-b from-gray-50 to-white">
+        <header class="p-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 sticky top-0 z-30 shadow-lg border-b border-blue-500/20">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="px-3 py-1 bg-blue-500/30 text-blue-100 text-[10px] font-bold rounded-full uppercase tracking-wider" id="header-ward">Loading Ward...</span>
+                        <span class="px-3 py-1 bg-green-500/30 text-green-100 text-[10px] font-bold rounded-full uppercase" id="header-role">Citizen</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-white" id="header-greeting">Hello, User</h3>
+                </div>
+                <button onclick="logout()" class="p-2.5 bg-blue-500/40 hover:bg-blue-500/60 text-white rounded-full transition shadow-md flex items-center justify-center" title="Logout">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="flex items-center justify-between pt-3 border-t border-blue-400/20 text-xs text-blue-100">
+                <div class="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                    <span id="header-phone">+91 98765 43210</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <span id="header-ward-location">Ward</span>
+                </div>
+            </div>
+        </header>
+
+        <main id="view-container" class="p-4">
+            <!-- View: Dashboard -->
+            <section id="view-dashboard" class="space-y-6">
+                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 text-white shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-40 h-40 bg-blue-500 rounded-full -mr-20 -mt-20 opacity-20"></div>
+                    <div class="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500 rounded-full -ml-16 -mb-16 opacity-20"></div>
+                    <div class="relative z-10">
+                        <p class="text-blue-100 text-xs font-medium mb-2 flex items-center gap-1">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"/></svg>
+                            Ward Budget FY24-25
+                        </p>
+                        <h2 class="text-4xl font-bold mb-4" id="dash-total-budget">₹ 4.50 Cr</h2>
+                        <div class="space-y-3 mb-5">
+                            <div class="flex justify-between text-xs">
+                                <span class="font-medium">Budget Utilization</span>
+                                <span id="dash-utilization-text" class="font-bold">Calculating...</span>
+                            </div>
+                            <div class="w-full bg-blue-800/50 rounded-full h-3">
+                                <div id="dash-utilization-bar"
+                                    class="bg-gradient-to-r from-yellow-300 to-orange-400 h-3 rounded-full transition-all duration-700" style="width: 0%">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 pt-4 border-t border-blue-400/30">
+                            <div>
+                                <p class="text-[11px] text-blue-200 font-bold">REMAINING</p>
+                                <p class="font-bold text-xl" id="dash-remaining-budget">₹ 0.00 Cr</p>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-blue-200 font-bold">ACTIVE PROJECTS</p>
+                                <p class="font-bold text-xl" id="dash-active-count">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="switchView('proposals')"
+                        class="bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-2xl border-2 border-indigo-200 shadow-md flex flex-col items-center hover:shadow-lg hover:scale-105 transition transform">
+                        <div
+                            class="w-12 h-12 bg-indigo-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-gray-900">Proposals</span>
+                        <span class="text-xs text-gray-500 mt-1">Create & Vote</span>
+                    </button>
+                    <button onclick="switchView('simulator')"
+                        class="bg-gradient-to-br from-emerald-50 to-green-50 p-5 rounded-2xl border-2 border-emerald-200 shadow-md flex flex-col items-center hover:shadow-lg hover:scale-105 transition transform">
+                        <div
+                            class="w-12 h-12 bg-emerald-500 text-white rounded-xl flex items-center justify-center mb-3 shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                                <path d="M12 18V6" />
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-gray-900">Simulator</span>
+                        <span class="text-xs text-gray-500 mt-1">Plan Budget</span>
+                    </button>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                        <span class="w-1 h-6 bg-gradient-to-b from-blue-600 to-indigo-600 rounded-full"></span>
+                        Live Activity Feed
+                    </h4>
+                    <div class="space-y-3" id="dashboard-trending-list"></div>
+                </div>
+            </section>
+
+            <!-- View: Proposals -->
+            <section id="view-proposals" class="hidden space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Community Proposals</h2>
+                        <p class="text-xs text-gray-500 mt-1">Vote on ideas that matter to you</p>
+                    </div>
+                    <button onclick="openProposalModal()"
+                        class="bg-gradient-to-r from-indigo-600 to-blue-600 text-white text-xs font-bold px-5 py-3 rounded-full shadow-lg hover:shadow-xl transition transform hover:scale-105">+ New Idea</button>
+                </div>
+                <div id="proposals-list" class="space-y-4"></div>
+            </section>
+
+            <!-- View: Simulator -->
+            <section id="view-simulator" class="hidden space-y-6">
+                <h2 class="text-xl font-bold text-center">Budget Simulation</h2>
+                <div class="bg-white p-4 rounded-2xl border">
+                    <div style="height: 180px;"><canvas id="simulatorChart"></canvas></div>
+                </div>
+                <div id="simulator-controls" class="space-y-4 bg-white p-5 rounded-2xl border"></div>
+                <button onclick="showToast('Preferences saved for analysis!')"
+                    class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg">Submit My
+                    Preference</button>
+            </section>
+
+            <!-- View: Results -->
+            <section id="view-results" class="hidden space-y-6">
+                <h2 class="text-xl font-bold">Transparency Log</h2>
+                <div class="bg-white rounded-2xl border p-4 space-y-4" id="results-status-list"></div>
+            </section>
+
+            <!-- View: Admin -->
+            <section id="view-admin" class="hidden space-y-6">
+                <div class="bg-gray-900 text-white p-4 rounded-2xl">
+                    <p class="text-xs opacity-60">Admin Command Center</p>
+                    <h2 class="text-xl font-bold">Municipal Portal</h2>
+                </div>
+                <div id="admin-pending-list" class="space-y-3"></div>
+            </section>
+        </main>
+
+        <nav
+            class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t-2 border-gray-100 safe-area-bottom flex items-center justify-around p-4 z-40 shadow-2xl">
+            <button onclick="switchView('dashboard')" id="nav-dashboard"
+                class="flex flex-col items-center gap-1 text-gray-500 active-nav hover:text-blue-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                <span class="text-[10px] font-semibold">Home</span>
+            </button>
+            <button onclick="switchView('proposals')" id="nav-proposals"
+                class="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h9z" />
+                </svg>
+                <span class="text-[10px] font-semibold">Proposals</span>
+            </button>
+            <button onclick="switchView('results')" id="nav-results"
+                class="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+                <span class="text-[10px] font-semibold">Results</span>
+            </button>
+            <button onclick="switchView('admin')" id="nav-admin"
+                class="hidden flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span class="text-[10px] font-semibold">Admin</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Modal -->
+    <div id="proposal-modal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end">
+        <div class="bg-white w-full max-w-md mx-auto rounded-t-3xl p-6 shadow-2xl animate-slide-up">
+            <div class="mb-6">
+                <h3 class="text-2xl font-bold text-gray-900 mb-1">New Project Idea</h3>
+                <p class="text-sm text-gray-500">Share your vision for Kolhapur</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Project Title</label>
+                    <input id="prop-title" type="text" placeholder="E.g. Fix Potholes on Main Street"
+                        class="w-full px-4 py-3 bg-gray-50 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:bg-white transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Category</label>
+                    <select id="prop-category" onchange="autoGenerateEstimate()"
+                        class="w-full px-4 py-3 bg-gray-50 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:bg-white transition">
+                        <option value="Roads">🛣️ Roads & Transport</option>
+                        <option value="Drainage">💧 Drainage & Waste</option>
+                        <option value="Parks">🌳 Parks & Recreation</option>
+                        <option value="Lighting">💡 Street Lighting</option>
+                        <option value="Safety">🛡️ Safety & Security</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase mb-2">Description</label>
+                    <textarea id="prop-desc" rows="3" placeholder="Explain the benefit and impact..."
+                        class="w-full px-4 py-3 bg-gray-50 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:bg-white transition resize-none"></textarea>
+                </div>
+                <div class="bg-gradient-to-r from-indigo-50 to-blue-50 p-4 rounded-2xl border-2 border-indigo-200 flex justify-between">
+                    <div>
+                        <p class="text-[10px] text-indigo-600 font-bold uppercase">Estimated Cost</p>
+                        <p id="prop-est-cost" class="font-bold text-indigo-700 text-lg">₹ 45 L</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] text-indigo-600 font-bold uppercase">Impact Score</p>
+                        <p class="font-bold text-indigo-700 text-lg">8.2/10</p>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-8">
+                <button onclick="closeProposalModal()" class="py-3 text-gray-600 font-bold border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition">Cancel</button>
+                <button onclick="submitProposal()" class="py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-blue-700 transition shadow-lg">Submit Idea</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"
+        class="fixed top-6 left-1/2 -translate-x-1/2 z-[60] bg-gray-900 text-white px-6 py-3 rounded-full text-sm font-medium shadow-2xl opacity-0 transition-all pointer-events-none">
+    </div>
+
+    <!-- External JS -->
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
