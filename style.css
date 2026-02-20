@@ -23,11 +23,13 @@ body {
 input[type=range] {
     height: 6px;
     -webkit-appearance: none;
+    appearance: none;
     width: 100%;
     background: #e5e7eb;
     border-radius: 8px;
 }
 
+/* WebKit browsers (Chrome, Safari) */
 input[type=range]::-webkit-slider-thumb {
     height: 18px;
     width: 18px;
@@ -42,6 +44,28 @@ input[type=range]::-webkit-slider-thumb {
 input[type=range]::-webkit-slider-thumb:hover {
     transform: scale(1.15);
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.6);
+}
+
+/* Firefox */
+input[type=range]::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: #2563eb;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+    transition: all 0.2s;
+}
+
+input[type=range]::-moz-range-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.6);
+}
+
+input[type=range]::-moz-range-track {
+    background: transparent;
+    border: none;
 }
 
 @keyframes loading {
@@ -80,10 +104,35 @@ input[type=range]::-webkit-slider-thumb:hover {
 /* Smooth transitions */
 button {
     transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 input, select, textarea {
     transition: all 0.2s ease;
+}
+
+/* Enhanced button animations */
+button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+button:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+button:active {
+    transform: scale(0.98);
 }
 
 /* Gradient text */
@@ -107,30 +156,6 @@ input, select, textarea {
 .proposal-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-}
-
-/* Enhanced button animations */
-button {
-    position: relative;
-    overflow: hidden;
-}
-
-button::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
-    transform: translate(-50%, -50%);
-    transition: width 0.6s, height 0.6s;
-}
-
-button:active::before {
-    width: 300px;
-    height: 300px;
 }
 
 /* Scrollbar styling */
@@ -174,7 +199,6 @@ button:active::before {
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
 }
 
-
 /* Smooth scrolling */
 html {
     scroll-behavior: smooth;
@@ -183,21 +207,6 @@ html {
 /* Focus states */
 input:focus, select:focus, textarea:focus {
     outline: none;
-}
-
-/* Active proposal card effect */
-.proposal-card {
-    transition: all 0.3s ease;
-}
-
-.proposal-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-}
-
-/* Button animations */
-button:active {
-    transform: scale(0.98);
 }
 
 /* Backdrop blur support */
